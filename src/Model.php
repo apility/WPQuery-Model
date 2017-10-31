@@ -75,7 +75,7 @@ abstract class Model extends \Jenssegers\Model\Model
             return $this->attributes[$prop];
         }
         trigger_error(
-            'Undefined property: ' . get_class($this) . '::$lol',
+            'Undefined property: ' . get_class($this) . '::$' . $prop,
             E_USER_NOTICE
         );
     }
