@@ -1,0 +1,24 @@
+{
+  "name": "netflex/model",
+  "description": "Implements an Eloquent-like model for WPQuery",
+  "type": "library",
+  "require": {
+    "Jenssegers/model": "^1.1",
+    "guzzlehttp/guzzle": "^6.2"
+  },
+  "authors": [
+    {
+      "name": "thomas-alrek",
+      "email": "thomas@apility.no"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Apility\\WPQuery\\": "src/"
+    }
+  },
+  "require-dev": {
+    "vlucas/phpdotenv": "^2.4",
+    "illuminate/database": "^5.3"
+  }
+}
