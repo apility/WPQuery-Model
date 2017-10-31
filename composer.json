@@ -1,5 +1,5 @@
 {
-  "name": "netflex/model",
+  "name": "apility/wpquery-model",
   "description": "Implements an Eloquent-like model for WPQuery",
   "type": "library",
   "require": {
