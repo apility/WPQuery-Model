@@ -2,23 +2,29 @@
 
 namespace Apility\WPQuery;
 
+use Cache;
 use Exception;
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 
 abstract class Model extends \Jenssegers\Model\Model
 {
     protected $host;
     protected $table;
+    protected $apiKey;
     protected $guzzle;
+    protected $hidden = [];
     protected $attributes = [];
 
     public function __construct(array $attributes = [])
     {
         parent::__construct();
         $this->apiKey = env('WPQUERY_API_KEY');
-        $this->host .= "wp-json/wpquery/v1/query/$this->table/";
+        if (is_null($this->apiKey) || empty($this->apiKey)) {
+            throw new Exception('No API key supplied');
+        }
+        $this->host = rtrim($this->host, '/') . '/';
+        $this->host .= 'wp-json/wpquery/v1/query/' . $this->table . '/';
         $this->guzzle = new Client([
             'base_uri' => $this->host
         ]);
@@ -30,17 +36,21 @@ abstract class Model extends \Jenssegers\Model\Model
     public static function all()
     {
         $model = new static;
-        return Cache::remember(
-            get_class($model) . '/' . $model->host . '/__all__',
-            3600,
-            function () use ($model) {
-                $response = $model->guzzle->get("?apikey=$model->apiKey")->getBody();
-                $collection = new Collection(json_decode($response, true));
-                return $collection->map(function ($entry) {
-                    return new static($entry);
+        $apiKey = $model->apiKey;
+        $guzzle = $model->guzzle;
+        try {
+            return Cache::remember(
+                '__wpquery__' . '/' . $model->host . '__all__',
+                3600,
+                function () use ($model) {
+                    $response = $model->guzzle->get('?apikey=' . $model->apiKey)->getBody();
+                    return (new Collection(json_decode($response, true)))->map(function ($entry) {
+                        return new static($entry);
+                    });
                 });
-            }
-        );
+        } catch (Exception $ex) {
+            return new Collection();
+        }
     }
 
     public static function findOrFail($id)
@@ -57,10 +67,10 @@ abstract class Model extends \Jenssegers\Model\Model
         try {
             $model = new static;
             return Cache::remember(
-                get_class($model) . '/' . $model->host . '/' . $id,
+                '__wpquery__' . '/' . $model->host . $id,
                 3600,
-                function () use ($model) {
-                    $response = $model->guzzle->get("$id?apikey=$model->apiKey")->getBody();
+                function () use ($id, $model) {
+                    $response = $model->guzzle->get($id . '?apikey=' . $model->apiKey)->getBody();
                     return new static(json_decode($response, true));
                 }
             );
@@ -72,6 +82,9 @@ abstract class Model extends \Jenssegers\Model\Model
     public function __get($prop)
     {
         if (isset($this->attributes[$prop])) {
+            if (method_exists($this, 'get' . $prop . 'attribute')) {
+                return $this->{'get' . $prop . 'attribute'}($this->attributes[$prop]);
+            }
             return $this->attributes[$prop];
         }
         trigger_error(
@@ -92,7 +105,13 @@ abstract class Model extends \Jenssegers\Model\Model
 
     public function __debugInfo()
     {
-        return $this->attributes;
+        $attributes = [];
+        foreach ($this->attributes as $key => $value) {
+            if (!in_array($key, $this->hidden)) {
+                $attributes[$key] = $this->__get($key);
+            }
+        }
+        return $attributes;
     }
     
     public function __toString()
