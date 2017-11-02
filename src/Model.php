@@ -4,10 +4,11 @@ namespace Apility\WPQuery;
 
 use Cache;
 use Exception;
+use JsonSerializable;
 use GuzzleHttp\Client;
 use Illuminate\Support\Collection;
 
-abstract class Model extends \Jenssegers\Model\Model
+abstract class Model implements JsonSerializable
 {
     protected $host;
     protected $table;
@@ -20,7 +21,6 @@ abstract class Model extends \Jenssegers\Model\Model
 
     public function __construct(array $attributes = [])
     {
-        parent::__construct();
         $this->apiKey = env('WPQUERY_API_KEY');
         if (is_null($this->apiKey) || empty($this->apiKey)) {
             throw new Exception('No API key supplied');
@@ -42,7 +42,7 @@ abstract class Model extends \Jenssegers\Model\Model
         $guzzle = $model->guzzle;
         try {
             return Cache::remember(
-                '__wpquery__' . '/' . $model->host . '__all__',
+                '__wpquery__' . '/' . static::class . '/__all__',
                 3600,
                 function () use ($model) {
                     $response = $model->guzzle->get('?apikey=' . $model->apiKey)->getBody();
@@ -60,7 +60,7 @@ abstract class Model extends \Jenssegers\Model\Model
         try {
             $model = new static;
             return Cache::remember(
-                '__wpquery__' . '/' . $model->host . $key . ':' . $value,
+                '__wpquery__' . '/' . static::class . '/' . $key . ':' . $value,
                 3600,
                 function () use ($key, $value, $model) {
                     $response = $model->guzzle->get($key . '/' . $value . '?apikey=' . $model->apiKey)->getBody();
@@ -88,7 +88,7 @@ abstract class Model extends \Jenssegers\Model\Model
         try {
             $model = new static;
             return Cache::remember(
-                '__wpquery__' . '/' . $model->host . $id,
+                '__wpquery__' . '/' . static::class . '/' . $id,
                 3600,
                 function () use ($id, $model) {
                     $response = $model->guzzle->get($id . '?apikey=' . $model->apiKey)->getBody();
@@ -158,8 +158,8 @@ abstract class Model extends \Jenssegers\Model\Model
                         $this->attributes[$this->primaryKey] . '?apikey=' . $this->apiKey,
                         ['json' => $modified]
                     );
-                    Cache::forget('__wpquery__' . '/' . $this->host . '__all__');
-                    Cache::forget('__wpquery__' . '/' . $this->host . $this->attributes[$this->primaryKey]);
+                    Cache::forget('__wpquery__' . '/' . static::class . '/__all__');
+                    Cache::forget('__wpquery__' . '/' . static::class . '/' . $this->attributes[$this->primaryKey]);
                 } else {
                     $result = json_decode($this->guzzle->post(
                         '?apikey=' . $this->apiKey,
@@ -189,6 +189,11 @@ abstract class Model extends \Jenssegers\Model\Model
             }
         }
         return $attributes;
+    }
+
+    public function jsonSerialize()
+    {
+        return $this->__debugInfo();
     }
     
     public function __toString()
