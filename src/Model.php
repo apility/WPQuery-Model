@@ -63,7 +63,6 @@ abstract class Model extends \Jenssegers\Model\Model
                 '__wpquery__' . '/' . $model->host . $key . ':' . $value,
                 3600,
                 function () use ($key, $value, $model) {
-                    die($key . '/' . $value . '?apikey=' . $model->apiKey);
                     $response = $model->guzzle->get($key . '/' . $value . '?apikey=' . $model->apiKey)->getBody();
                     return (new Collection(json_decode($response, true)))->map(function ($entry) {
                         return new static($entry);
