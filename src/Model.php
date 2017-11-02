@@ -55,6 +55,26 @@ abstract class Model extends \Jenssegers\Model\Model
         }
     }
 
+    public static function where($key, $value)
+    {
+        try {
+            $model = new static;
+            return Cache::remember(
+                '__wpquery__' . '/' . $model->host . $key . ':' . $value,
+                3600,
+                function () use ($key, $value, $model) {
+                    die($key . '/' . $value . '?apikey=' . $model->apiKey);
+                    $response = $model->guzzle->get($key . '/' . $value . '?apikey=' . $model->apiKey)->getBody();
+                    return (new Collection(json_decode($response, true)))->map(function ($entry) {
+                        return new static($entry);
+                    });
+                }
+            );
+        } catch (Exception $ex) {
+            return null;
+        }
+    }
+
     public static function findOrFail($id)
     {
         $found = self::find($id);
@@ -73,7 +93,7 @@ abstract class Model extends \Jenssegers\Model\Model
                 3600,
                 function () use ($id, $model) {
                     $response = $model->guzzle->get($id . '?apikey=' . $model->apiKey)->getBody();
-                    return new static(json_decode($response, true), $id);
+                    return new static(json_decode($response, true));
                 }
             );
         } catch (Exception $ex) {
@@ -155,15 +175,10 @@ abstract class Model extends \Jenssegers\Model\Model
                 $this->modified = [];
                 return true;
             } catch (Exception $ex) {
-                throw new Exception('Unable to save. Is write support enabled?');
+                throw new Exception('Unable to save. Is write support disabled?');
             }
         }
         return false;
-    }
-
-    public static function first()
-    {
-        return self::all()[0];
     }
 
     public function __debugInfo()
