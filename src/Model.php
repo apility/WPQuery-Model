@@ -4,11 +4,13 @@ namespace Apility\WPQuery;
 
 use Cache;
 use Exception;
+use Serializable;
 use JsonSerializable;
 use GuzzleHttp\Client;
 use Illuminate\Support\Collection;
+use Illuminate\Contracts\Support\Jsonable;
 
-abstract class Model implements JsonSerializable
+abstract class Model implements Serializable, JsonAble, JsonSerializable
 {
     protected $host;
     protected $table;
@@ -70,7 +72,8 @@ abstract class Model implements JsonSerializable
                 }
             );
         } catch (Exception $ex) {
-            return null;
+            throw $ex;
+            /* return new Collection(); */
         }
     }
 
@@ -114,10 +117,11 @@ abstract class Model implements JsonSerializable
             }
             return $this->{'get' . $prop . 'attribute'}();
         }
-        trigger_error(
+        return null;
+        /* trigger_error(
             'Undefined property: ' . get_class($this) . '::$' . $prop,
             E_USER_NOTICE
-        );
+        ); */
     }
     
     public function __set($prop, $value)
@@ -195,9 +199,24 @@ abstract class Model implements JsonSerializable
     {
         return $this->__debugInfo();
     }
+
+    public function toJson($options = 0)
+    {
+        return json_encode($this->jsonSerialize(), $options);
+    }
     
     public function __toString()
     {
-        return json_encode($this->__debugInfo());
+        return $this->toJson();
+    }
+
+    public function serialize()
+    {
+        return serialize($this->attributes);
+    }
+
+    public function unserialize($data)
+    {
+        $this->attributes = unserialize($data);
     }
 }
